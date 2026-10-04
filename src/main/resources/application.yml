@@ -1,0 +1,23 @@
+spring:
+  application:
+    name: integration-system
+  data:
+    mongodb:
+      host: ${MONGO_HOST:localhost}
+      port: ${MONGO_PORT:27017}
+      database: ${MONGO_DB:historical_db}
+
+cms:
+  base-url: ${CMS_BASE_URL:http://localhost:4500/cms}
+  username: ${CMS_USERNAME:admin}
+  password: ${CMS_PASSWORD:admin}
+  page-size: ${CMS_PAGE_SIZE:10}
+
+sync:
+  interval: ${SYNC_INTERVAL:3600000}
+
+logging:
+  level:
+    root: INFO
+    ru.student35.sync: INFO
+    org.apache.camel: INFO

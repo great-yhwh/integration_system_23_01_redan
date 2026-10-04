@@ -1,0 +1,15 @@
+spring:
+  data:
+    mongodb:
+      database: test_db
+
+cms:
+  page-size: 5
+
+sync:
+  interval: 999999999
+
+logging:
+  level:
+    ru.student35.sync: DEBUG
+    org.apache.camel: DEBUG
