@@ -1,13 +1,29 @@
 services:
   mongodb:
     image: mongo:latest
-    container_name: integration-mongo
+    container_name: integration-db
+    restart: always
     ports:
       - "27017:27017"
     environment:
       MONGO_INITDB_DATABASE: ${MONGO_DB}
     volumes:
       - mongodb_data:/data/db
+
+  mongo-gui:
+    image: mongo-express:latest
+    container_name: integration-gui-db
+    restart: always
+    ports:
+      - "50090:8081"
+    environment:
+      ME_CONFIG_MONGODB_SERVER: mongodb
+      ME_CONFIG_MONGODB_PORT: 27017
+      ME_CONFIG_BASICAUTH_USERNAME: ${MONGO_GUI_USERNAME}
+      ME_CONFIG_BASICAUTH_PASSWORD: ${MONGO_GUI_PASSWORD}
+    depends_on:
+      - mongodb
+
 
 volumes:
   mongodb_data:
