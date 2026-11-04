@@ -9,8 +9,19 @@ cms:
 sync:
   interval: 999999999
 
+report:
+  api-url: http://localhost:4501/report
+
+report-sync:
+  interval: 999999999
+
 logging:
+  pattern:
+    console: "%-5level %logger{36} : %msg%n"
   level:
     root: WARN
-    ru.student35.sync: DEBUG
-    org.apache.camel: DEBUG
+    ru.student35.sync: INFO
+    org.apache.camel: WARN
+    org.springframework: WARN
+    org.springframework.data.mongodb: WARN
+    org.mongodb.driver: WARN
