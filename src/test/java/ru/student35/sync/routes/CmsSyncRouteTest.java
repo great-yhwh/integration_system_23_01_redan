@@ -12,34 +12,36 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.test.context.ActiveProfiles;
-import ru.student35.sync.config.CmsProperties;
 import ru.student35.sync.model.Part;
 import ru.student35.sync.repository.PartRepository;
 
 import java.math.BigDecimal;
-import java.util.Optional;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Интеграционный тест роута Поток А: CMS → MongoDB.
+ * Интеграционный тест Content-Based Router в роуте.
  *
- * <p>Проверяет работу полного конвейера:</p>
- * <ol>
- *   <li>Timer срабатывает (заменён на ручной запуск)</li>
- *   <li>HTTP-запрос к CMS с Basic Auth</li>
- *   <li>Message Translator преобразует SpareDto в Part</li>
- *   <li>Данные сохраняются в MongoDB</li>
- * </ol>
+ * <p>Проверяет все 4 ветки маршрутизации:</p>
+ * <ul>
+ *   <li>INSERT — новая деталь</li>
+ *   <li>SKIP — неизменная деталь</li>
+ *   <li>UPDATE — изменённая дата</li>
+ *   <li>SOFT DELETE — деталь отсутствует в CMS</li>
+ * </ul>
  */
 @CamelSpringBootTest
 @SpringBootTest
 @UseAdviceWith
 @ActiveProfiles("test")
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 @DisplayName("Интеграционное тестирование роута: CMS → MongoDB")
 class CmsSyncRouteTest {
     private static final Logger log = LoggerFactory.getLogger(CmsSyncRouteTest.class);
+
+    private static final int TOTAL_CMS_RECORDS = 50;
 
     private static Process mockProcess;
 
@@ -54,9 +56,6 @@ class CmsSyncRouteTest {
 
     @Autowired
     private MongoTemplate mongoTemplate;
-
-    @Autowired
-    private CmsProperties cmsProperties;
 
     @BeforeAll
     @DisplayName("Запуск мок-сервера CMS")
@@ -79,66 +78,136 @@ class CmsSyncRouteTest {
         }
     }
 
+    private static boolean adviceApplied = false;
+
     @BeforeEach
     @DisplayName("Очистка БД и подготовка роута")
     void setUp() throws Exception {
         mongoTemplate.dropCollection(Part.class);
 
-        AdviceWith.adviceWith(camelContext, "cmsSync", a ->
-                a.replaceFromWith("direct:triggerSync")
-        );
+        if (!adviceApplied) {
+            AdviceWith.adviceWith(camelContext, "cmsSync", a ->
+                    a.replaceFromWith("direct:triggerSync")
+            );
+            adviceApplied = true;
+        }
 
-        camelContext.start();
+        if (!camelContext.isStarted()) {
+            camelContext.start();
+        }
     }
 
+    // ─────────────────────────── INSERT ───────────────────────────
+
     @Test
-    @DisplayName("Camel-роут: Timer → HTTP → Translator → MongoDB")
-    void cmsSyncRoute_shouldFetchTranslateAndSave() {
+    @Order(1)
+    @DisplayName("CBR → INSERT: первый запуск, все записи новые")
+    void firstRun_shouldInsertAll() {
         producerTemplate.sendBody("direct:triggerSync", null);
 
-        int expectedSize = cmsProperties.getPageSize();
         long count = partRepository.count();
 
         assertThat(count)
-                .as("Количество записей в БД должно совпадать с page-size")
-                .isEqualTo(expectedSize);
+                .as("Мок отдаёт %d деталей (5 страниц × 10)", TOTAL_CMS_RECORDS)
+                .isEqualTo(TOTAL_CMS_RECORDS);
 
-        Optional<Part> found = partRepository.findBySpareCode("SPARE-1");
+        Part first = partRepository.findBySpareCode("SPARE-1").orElseThrow();
 
-        assertThat(found)
-                .as("SPARE-1 должна быть сохранена в БД")
-                .isPresent();
-
-        Part part = found.get();
-
-        assertThat(part.getId())
-                .as("MongoDB должна сгенерировать ID")
-                .isNotNull();
-
-        assertThat(part.getSpareName()).isEqualTo("Spare Part 1");
-
-        assertThat(part.getPrice())
-                .as("Цена должна быть BigDecimal")
-                .isInstanceOf(BigDecimal.class);
-
-        assertThat(part.getUpdatedAt())
-                .as("Дата должна быть распарсена")
-                .isNotNull();
-
-        assertThat(part.isDeleted())
+        assertThat(first.isDeleted())
                 .as("Новая деталь не должна быть помечена как удалённая")
                 .isFalse();
 
-        assertThat(part.getSyncedAt())
+        assertThat(first.getSyncedAt())
                 .as("syncedAt должен быть заполнен")
                 .isNotNull();
 
-        log.info("Роут отработал успешно");
-        log.info("  Записей в БД:    {}", count);
-        log.info("  spareCode:       {}", part.getSpareCode());
-        log.info("  spareName:       {}", part.getSpareName());
-        log.info("  price:           {} ({})", part.getPrice(), part.getPrice().getClass().getSimpleName());
-        log.info("  updatedAt:       {}", part.getUpdatedAt());
-        log.info("  syncedAt:        {}", part.getSyncedAt());
+        log.info("CBR → INSERT: {} записей сохранено", count);
+    }
+
+    // ─────────────────────────── SKIP ─────────────────────────────
+
+    @Test
+    @Order(2)
+    @DisplayName("CBR → SKIP: второй запуск, данные не изменились")
+    void secondRun_shouldSkipAll() {
+        producerTemplate.sendBody("direct:triggerSync", null);
+        assertThat(partRepository.count()).isEqualTo(TOTAL_CMS_RECORDS);
+
+        Part before = partRepository.findBySpareCode("SPARE-1").orElseThrow();
+        LocalDateTime syncedAtBefore = before.getSyncedAt();
+
+        producerTemplate.sendBody("direct:triggerSync", null);
+
+        assertThat(partRepository.count())
+                .as("Количество записей не должно измениться")
+                .isEqualTo(TOTAL_CMS_RECORDS);
+
+        Part after = partRepository.findBySpareCode("SPARE-1").orElseThrow();
+
+        assertThat(after.getSyncedAt())
+                .as("syncedAt не должен измениться при SKIP")
+                .isEqualTo(syncedAtBefore);
+
+        log.info("CBR → SKIP: syncedAt не изменился ({})", syncedAtBefore);
+    }
+
+    // ─────────────────────────── UPDATE ───────────────────────────
+
+    @Test
+    @Order(3)
+    @DisplayName("CBR → UPDATE: изменён updatedAt в CMS")
+    void changedDate_shouldUpdate() {
+        producerTemplate.sendBody("direct:triggerSync", null);
+
+        LocalDate staleDate = LocalDate.of(2020, 1, 1);
+        Part part = partRepository.findBySpareCode("SPARE-1").orElseThrow();
+        part.setUpdatedAt(staleDate);
+        partRepository.save(part);
+
+        producerTemplate.sendBody("direct:triggerSync", null);
+
+        Part updated = partRepository.findBySpareCode("SPARE-1").orElseThrow();
+
+        assertThat(updated.getUpdatedAt())
+                .as("updatedAt должен обновиться до значения из CMS")
+                .isNotEqualTo(staleDate);
+
+        log.info("CBR → UPDATE: {} → {}", staleDate, updated.getUpdatedAt());
+    }
+
+    // ─────────────────────── SOFT DELETE ──────────────────────────
+
+    @Test
+    @Order(4)
+    @DisplayName("CBR → SOFT DELETE: деталь в Mongo, но нет в CMS")
+    void missingInCms_shouldSoftDelete() {
+        // Лишняя» деталь, которой нет в CMS
+        Part ghost = new Part();
+        ghost.setSpareCode("EXTRA-999");
+        ghost.setSpareName("Ghost Part");
+        ghost.setPrice(BigDecimal.TEN);
+        ghost.setQuantity(1);
+        ghost.setUpdatedAt(LocalDate.now());
+        ghost.setDeleted(false);
+        ghost.setSyncedAt(LocalDateTime.now());
+        partRepository.save(ghost);
+
+        producerTemplate.sendBody("direct:triggerSync", null);
+
+        Part deleted = partRepository.findBySpareCode("EXTRA-999").orElseThrow();
+
+        assertThat(deleted.isDeleted())
+                .as("Деталь, отсутствующая в CMS, должна быть isDeleted=true")
+                .isTrue();
+
+        assertThat(deleted.getDeletedAt())
+                .as("deletedAt должен быть заполнен")
+                .isNotNull();
+
+        assertThat(partRepository.findByIsDeletedFalse())
+                .as("Все детали из CMS должны остаться активными")
+                .hasSize(TOTAL_CMS_RECORDS);
+
+        log.info("CBR → SOFT DELETE: EXTRA-999 удалён, {} активных", TOTAL_CMS_RECORDS);
     }
 }

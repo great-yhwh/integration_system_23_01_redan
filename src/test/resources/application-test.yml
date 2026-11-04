@@ -11,5 +11,6 @@ sync:
 
 logging:
   level:
+    root: WARN
     ru.student35.sync: DEBUG
     org.apache.camel: DEBUG

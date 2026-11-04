@@ -1,7 +1,5 @@
 package ru.student35.sync.processor;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
 import org.slf4j.Logger;
@@ -21,29 +19,23 @@ import java.util.stream.Collectors;
  *
  * <p>Преобразует список {@link SpareDto} из CMS в список {@link Part}
  * для сохранения в MongoDB.</p>
- *
- * <p>Также выполняет функцию Content Enricher — добавляет служебные поля
- * {@code isDeleted} и {@code syncedAt}, которых нет в CMS.</p>
  */
 @Component
 public class SpareToPartTranslator implements Processor {
 
     private static final Logger log = LoggerFactory.getLogger(SpareToPartTranslator.class);
 
-    private final ObjectMapper objectMapper;
-
-    public SpareToPartTranslator(ObjectMapper objectMapper) {
-        this.objectMapper = objectMapper;
-    }
-
     @Override
-    public void process(Exchange exchange) throws Exception {
-        String json = exchange.getIn().getBody(String.class);
+    @SuppressWarnings("unchecked")
+    public void process(Exchange exchange) {
+        // CmsClient уже вернул List<SpareDto> — десериализация не нужна
+        List<SpareDto> dtos = exchange.getIn().getBody(List.class);
 
-        List<SpareDto> dtos = objectMapper.readValue(
-                json,
-                new TypeReference<List<SpareDto>>() {}
-        );
+        if (dtos == null) {
+            log.warn("Трансляция: тело пустое");
+            exchange.getIn().setBody(List.of());
+            return;
+        }
 
         List<Part> parts = dtos.stream()
                 .map(this::toPart)
