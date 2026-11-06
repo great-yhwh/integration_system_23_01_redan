@@ -16,7 +16,7 @@ import java.util.List;
  * <p>Преобразует List&lt;Part&gt; из MongoDB в CSV-строку
  * для отправки в Report API.</p>
  *
- * <p>Формат: UTF-8, разделитель «;», первая строка — заголовки.</p>
+ * <p>Формат: UTF-8, разделитель «;», без строки заголовков.</p>
  */
 @Component
 public class CsvPrepareProcessor implements Processor {
@@ -36,13 +36,6 @@ public class CsvPrepareProcessor implements Processor {
 
         StringBuilder csv = new StringBuilder();
 
-        // Заголовки
-        csv.append(String.join(DELIMITER,
-                "spareCode", "spareName", "spareDescription", "spareType",
-                "spareStatus", "price", "quantity", "updatedAt"
-        )).append(NEWLINE);
-
-        // Данные
         if (parts != null) {
             for (Part part : parts) {
                 csv.append(toRow(part)).append(NEWLINE);
@@ -56,11 +49,6 @@ public class CsvPrepareProcessor implements Processor {
     }
 
     private String toRow(Part part) {
-        String date = "";
-        if (part.getUpdatedAt() != null) {
-            date = part.getUpdatedAt().atStartOfDay().format(DATE_FORMATTER);
-        }
-
         String price = part.getPrice() != null
                 ? part.getPrice().stripTrailingZeros().toPlainString()
                 : "0";
@@ -73,9 +61,10 @@ public class CsvPrepareProcessor implements Processor {
                 nullSafe(part.getSpareStatus()),
                 price,
                 part.getQuantity() != null ? part.getQuantity().toString() : "0",
-                date
+                nullSafe(part.getUpdatedAt())   // ← строка как есть, без форматтера
         );
     }
+
 
     private String nullSafe(String s) {
         return s != null ? s : "";

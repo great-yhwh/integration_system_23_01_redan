@@ -9,7 +9,6 @@ import ru.student35.sync.dto.cms.SpareDto;
 import ru.student35.sync.model.Part;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -56,7 +55,7 @@ public class SpareToPartTranslator implements Processor {
         part.setQuantity(dto.getQuantity());
 
         part.setPrice(parsePrice(dto.getPrice()));
-        part.setUpdatedAt(parseDate(dto.getUpdatedAt()));
+        part.setUpdatedAt(dto.getUpdatedAt());
 
         part.setDeleted(false);
         part.setSyncedAt(LocalDateTime.now());
@@ -74,10 +73,10 @@ public class SpareToPartTranslator implements Processor {
         }
     }
 
-    private LocalDate parseDate(String date) {
+    private LocalDateTime parseDate(String date) {
         if (date == null || date.isBlank()) return null;
         try {
-            return LocalDateTime.parse(date).toLocalDate();
+            return LocalDateTime.parse(date);
         } catch (Exception e) {
             log.warn("Невозможно распарсить дату: {}", date);
             return null;

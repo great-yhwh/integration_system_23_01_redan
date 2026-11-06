@@ -43,12 +43,14 @@ public class CmsClient {
     public List<SpareDto> fetchAllSpares() throws Exception {
         List<SpareDto> all = new ArrayList<>();
         int page = 0;
-        boolean hasMore = true;
 
-        while (hasMore) {
+        while (true) {
             List<SpareDto> pageData = fetchPage(page);
+            if (pageData == null || pageData.isEmpty()) {
+                break;
+            }
             all.addAll(pageData);
-            hasMore = pageData.size() == properties.getPageSize();
+            log.info("Страница {}: загружено {} записей", page, pageData.size());
             page++;
         }
 

@@ -8,7 +8,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import ru.student35.sync.model.Part;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -36,7 +35,7 @@ class PartRepositoryTest {
         part.setSpareStatus("AVAILABLE");
         part.setPrice(new BigDecimal(price));
         part.setQuantity(100);
-        part.setUpdatedAt(LocalDate.now());
+        part.setUpdatedAt("2026-09-28T12:35:25.238411853");
         part.setDeleted(isDeleted);
         return part;
     }

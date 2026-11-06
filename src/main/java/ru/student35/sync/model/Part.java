@@ -36,7 +36,7 @@ public class Part {
     private String spareStatus;
     private BigDecimal price;
     private Integer quantity;
-    private LocalDate updatedAt;
+    private String updatedAt;
 
     private boolean isDeleted;
     private LocalDateTime syncedAt;
@@ -110,11 +110,11 @@ public class Part {
         this.quantity = quantity;
     }
 
-    public LocalDate getUpdatedAt() {
+    public String getUpdatedAt() {
         return updatedAt;
     }
 
-    public void setUpdatedAt(LocalDate updatedAt) {
+    public void setUpdatedAt(String updatedAt) {
         this.updatedAt = updatedAt;
     }
 

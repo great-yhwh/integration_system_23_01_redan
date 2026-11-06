@@ -40,7 +40,8 @@ public class CmsSyncRoute extends RouteBuilder {
         from("timer:cmsSync?period={{sync.interval}}")
                 .routeId("cmsSync")
                 .log("=== Запуск синхронизации ===")
-                .to("direct:syncCms");
+                .to("direct:syncCms")
+                .to("direct:generateReport");
 
         from("direct:syncCms")
                 .routeId("syncCms")

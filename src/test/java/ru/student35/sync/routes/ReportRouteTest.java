@@ -20,7 +20,6 @@ import java.io.InputStreamReader;
 import java.math.BigDecimal;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -105,7 +104,7 @@ class ReportRouteTest {
         producerTemplate.sendBody("direct:triggerReport", null);
         Thread.sleep(500);
 
-        String response = httpGet("http://localhost:4501/report/last");
+        String response = httpGet();
 
         assertThat(response)
                 .as("Мок должен подтвердить получение CSV")
@@ -129,7 +128,7 @@ class ReportRouteTest {
         producerTemplate.sendBody("direct:triggerReport", null);
         Thread.sleep(500);
 
-        String response = httpGet("http://localhost:4501/report/last");
+        String response = httpGet();
 
         assertThat(response)
                 .as("CSV должен включать даже удалённые записи")
@@ -145,7 +144,7 @@ class ReportRouteTest {
         active.setSpareName("Test Part");
         active.setPrice(new BigDecimal("10.50"));
         active.setQuantity(5);
-        active.setUpdatedAt(LocalDate.of(2025, 1, 15));
+        active.setUpdatedAt("2025-09-28T12:35:25.238411853");
         active.setDeleted(false);
         active.setSyncedAt(LocalDateTime.now());
         partRepository.save(active);
@@ -155,15 +154,15 @@ class ReportRouteTest {
         deleted.setSpareName("Old Part");
         deleted.setPrice(new BigDecimal("5"));
         deleted.setQuantity(0);
-        deleted.setUpdatedAt(LocalDate.of(2024, 6, 1));
+        deleted.setUpdatedAt("2024-09-28T12:35:25.238411853");
         deleted.setDeleted(true);
         deleted.setDeletedAt(LocalDateTime.now());
         deleted.setSyncedAt(LocalDateTime.now());
         partRepository.save(deleted);
     }
 
-    private String httpGet(String urlStr) throws Exception {
-        HttpURLConnection conn = (HttpURLConnection) new URL(urlStr).openConnection();
+    private String httpGet() throws Exception {
+        HttpURLConnection conn = (HttpURLConnection) new URL("http://localhost:4501/report/last").openConnection();
         conn.setRequestMethod("GET");
 
         try (BufferedReader reader = new BufferedReader(

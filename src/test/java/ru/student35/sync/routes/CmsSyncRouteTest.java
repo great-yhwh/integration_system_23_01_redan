@@ -16,7 +16,6 @@ import ru.student35.sync.model.Part;
 import ru.student35.sync.repository.PartRepository;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -159,7 +158,7 @@ class CmsSyncRouteTest {
     void changedDate_shouldUpdate() {
         producerTemplate.sendBody("direct:triggerSync", null);
 
-        LocalDate staleDate = LocalDate.of(2020, 1, 1);
+        String staleDate = "2020-09-28T12:35:25.238411853";
         Part part = partRepository.findBySpareCode("SPARE-1").orElseThrow();
         part.setUpdatedAt(staleDate);
         partRepository.save(part);
@@ -187,7 +186,7 @@ class CmsSyncRouteTest {
         ghost.setSpareName("Ghost Part");
         ghost.setPrice(BigDecimal.TEN);
         ghost.setQuantity(1);
-        ghost.setUpdatedAt(LocalDate.now());
+        ghost.setUpdatedAt("2026-09-28T12:35:25.238411853");
         ghost.setDeleted(false);
         ghost.setSyncedAt(LocalDateTime.now());
         partRepository.save(ghost);

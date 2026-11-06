@@ -19,8 +19,8 @@ sync:
 report:
   api-url: ${REPORT_API_URL:http://localhost:4501/report}
 
-report-sync:
-  interval: ${REPORT_SYNC_INTERVAL:60000}
+auth:
+  token-url: ${AUTH_TOKEN_URL:http://localhost:4500/auth/token/}
 
 logging:
   level:
